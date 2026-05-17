@@ -15,23 +15,28 @@ FULL_TABLE = f"cryptic-spanner-311208.{DATASET_ID}.{TABLE_ID}"
 
 
 def get_client():
-    import pathlib
-    base_dir = pathlib.Path(__file__).parent.parent
-    key_path = str(base_dir / "service_account.json")
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
     try:
-        credentials = service_account.Credentials.from_service_account_file(
-            key_path,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
-        )
-                 
+        # Streamlit Cloud : utilise st.secrets
+        if "gcp_service_account" in st.secrets:
+            credentials = service_account.Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+        else:
+            # Local : utilise le fichier service_account.json
+            import pathlib
+            base_dir = pathlib.Path(__file__).parent.parent
+            key_path = str(base_dir / "service_account.json")
+            credentials = service_account.Credentials.from_service_account_file(
+                key_path,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+
         client = bigquery.Client(
             credentials=credentials,
             project="cryptic-spanner-311208",
             location="europe-west6"
-
         )
-        
         return client
     except Exception as e:
         st.error(f"❌ BigQuery connection failed: {e}")
