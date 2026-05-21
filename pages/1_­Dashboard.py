@@ -61,48 +61,6 @@ with col_time:
 
 st.markdown("---")
 
-# ── Indoor Sensors ────────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">Indoor Sensor Readings</div>', unsafe_allow_html=True)
-
-if latest:
-    temp = latest.get("temperature")
-    hum = latest.get("humidity")
-    pres = latest.get("pressure")
-    soil_raw = latest.get("soil_raw")
-    soil_moist = latest.get("soil_moisture")
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        delta_temp = None
-        if stats_24h.get("avg_temp") and temp:
-            delta_temp = round(temp - stats_24h["avg_temp"], 1)
-        st.metric("Temperature", f"{temp:.1f} °C" if temp else "—",
-                  delta=f"{delta_temp:+.1f}°C vs 24h avg" if delta_temp else None,
-                  help="Current indoor temperature")
-    with col2:
-        hum_status = "Optimal" if hum and 40 <= hum <= 60 else ("Too dry" if hum and hum < 40 else "Too humid")
-        st.metric("Humidity", f"{hum:.1f} %" if hum else "—",
-                  delta=hum_status, help="Optimal range: 40–60%")
-    with col3:
-        pres_status = None
-        if pres:
-            pres_status = "High pressure" if pres > 1013 else ("Low pressure" if pres < 1000 else "Normal")
-        st.metric("Pressure", f"{pres:.1f} hPa" if pres else "—",
-                  delta=pres_status, help="Atmospheric pressure")
-    with col4:
-        soil_comment = None
-        if soil_raw:
-            soil_comment = "Wet" if soil_raw < 1500 else ("Moist" if soil_raw < 2000 else "Dry")
-        st.metric("Soil Raw", f"{soil_raw}" if soil_raw else "—",
-                  delta=soil_comment, help="Raw ADC value from soil sensor")
-    with col5:
-        st.metric("Soil Moisture", f"{soil_moist} %" if soil_moist else "—",
-                  help="Calibrated soil moisture percentage")
-else:
-    st.warning("No sensor data available. Check your BigQuery connection.")
-
-st.markdown("---")
-
 # ── Last Readings Table ───────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Last Sensor Readings</div>', unsafe_allow_html=True)
 

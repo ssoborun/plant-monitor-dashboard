@@ -10,55 +10,44 @@ from utils.bigquery_client import get_readings, get_stats, delete_readings
 
 st.set_page_config(page_title="Data Explorer", page_icon="🔍", layout="wide")
 
-st.markdown("## 🔍 Data Explorer")
+st.markdown("## Data Explorer")
 st.caption("Filter, explore, and export your raw sensor data")
 st.markdown("---")
 
-# ── Date + Hour filters ───────────────────────────────────────────────────────
+# ── Filters ───────────────────────────────────────────────────────────────────
 col1, col2 = st.columns(2)
 
 with col1:
-    start_date = st.date_input(
-        "📅 Start date",
-        value=pd.Timestamp.now() - pd.Timedelta(days=7)
-    )
+    start_date = st.date_input("Start date", value=pd.Timestamp.now() - pd.Timedelta(days=7))
     start_hour = st.slider("Start hour", 0, 23, 0)
 
 with col2:
-    end_date = st.date_input(
-        "📅 End date",
-        value=pd.Timestamp.now()
-    )
+    end_date = st.date_input("End date", value=pd.Timestamp.now())
     end_hour = st.slider("End hour", 0, 23, 23)
 
-col3, col4 = st.columns([2, 1])
+col3, _ = st.columns([2, 1])
 with col3:
     limit = st.number_input("Max rows", min_value=100, max_value=10000, value=1000, step=100)
 
-# Timezone: data stored in UTC, Switzerland = UTC+2
-SWISS_OFFSET = pd.Timedelta(hours=2)
+start_dt = pd.Timestamp(start_date).replace(hour=start_hour).tz_localize("UTC")
+end_dt = pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59).tz_localize("UTC")
 
-start_dt = (pd.Timestamp(start_date).replace(hour=start_hour) - SWISS_OFFSET).tz_localize("UTC")
-end_dt = (pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59) - SWISS_OFFSET).tz_localize("UTC")
-
-# ── Load + Refresh buttons ────────────────────────────────────────────────────
+# ── Buttons ───────────────────────────────────────────────────────────────────
 bcol1, bcol2 = st.columns([2, 1])
 with bcol1:
-    load = st.button("🔍 Load Data", type="primary")
+    load = st.button("Load Data", type="primary")
 with bcol2:
-    refresh = st.button("🔄 Refresh")
+    refresh = st.button("Refresh")
 
 if load or refresh:
     with st.spinner("Fetching data from BigQuery..."):
         df = get_readings(start_date=start_dt, end_date=end_dt, limit=limit)
-        # Convert timestamps to Swiss time for display
         if not df.empty and "timestamp" in df.columns:
-            df["timestamp"] = (df["timestamp"] + SWISS_OFFSET).dt.tz_localize(None)
+            df["timestamp"] = df["timestamp"].dt.tz_localize(None)
         st.session_state["explorer_df"] = df
-        st.session_state["explorer_loaded"] = True
 
 if "explorer_df" not in st.session_state:
-    st.info("👆 Select a date range and click **Load Data**")
+    st.info("Select a date range and click Load Data.")
     st.stop()
 
 df = st.session_state["explorer_df"]
@@ -67,8 +56,8 @@ if df.empty:
     st.warning("No data found for the selected period.")
     st.stop()
 
-# ── Stats summary ─────────────────────────────────────────────────────────────
-st.markdown("### 📊 Period Summary")
+# ── Period Summary ────────────────────────────────────────────────────────────
+st.markdown("### Period Summary")
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     st.metric("Total Readings", f"{len(df):,}")
@@ -87,59 +76,45 @@ with col5:
 
 st.markdown("---")
 
-# ── Column selector & sort ────────────────────────────────────────────────────
-st.markdown("### 🗂️ Raw Data Table")
+# ── Data Table ────────────────────────────────────────────────────────────────
+st.markdown("### Raw Data Table")
 
 all_cols = list(df.columns)
-selected_cols = st.multiselect(
-    "Select columns to display",
-    options=all_cols,
-    default=all_cols
-)
-
+selected_cols = st.multiselect("Select columns to display", options=all_cols, default=all_cols)
 sort_col = st.selectbox("Sort by", options=all_cols, index=0)
 sort_order = st.radio("Order", ["Descending ↓", "Ascending ↑"], horizontal=True)
-ascending = sort_order == "Ascending ↑"
 
-display_df = df[selected_cols].sort_values(
-    by=sort_col, ascending=ascending
-).reset_index(drop=True)
-
+display_df = df[selected_cols].sort_values(by=sort_col, ascending=(sort_order == "Ascending ↑")).reset_index(drop=True)
 st.dataframe(display_df, use_container_width=True, height=400)
-st.caption(f"Showing {len(display_df):,} rows — times displayed in Swiss time (UTC+2)")
+st.caption(f"{len(display_df):,} rows")
 
 st.markdown("---")
 
-# ── Quick charts — multi-metric overlay ───────────────────────────────────────
-st.markdown("### 📈 Quick Visualization")
+# ── Visualization ─────────────────────────────────────────────────────────────
+st.markdown("### Visualization")
 
 numeric_cols = df.select_dtypes(include="number").columns.tolist()
 if numeric_cols and "timestamp" in df.columns:
     selected_metrics = st.multiselect(
-        "Select metrics to plot (overlay)",
+        "Select metrics to plot",
         options=numeric_cols,
         default=[numeric_cols[0]]
     )
-
     if selected_metrics:
         df_sorted = df.sort_values("timestamp").dropna(subset=selected_metrics, how="all")
         df_melted = df_sorted.melt(id_vars="timestamp", value_vars=selected_metrics,
                                    var_name="Metric", value_name="Value")
-
-        fig = px.line(
-            df_melted, x="timestamp", y="Value", color="Metric",
-            title="Sensor metrics over time",
-            labels={"timestamp": "Time (Swiss)", "Value": ""},
-            template="plotly_dark",
-            height=350,
-        )
-        fig.update_traces(connectgaps=False)  # No lines across missing data
+        fig = px.line(df_melted, x="timestamp", y="Value", color="Metric",
+                      title="Sensor metrics over time",
+                      labels={"timestamp": "Time", "Value": ""},
+                      template="plotly_dark", height=350)
+        fig.update_traces(connectgaps=False)
         st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
 # ── Export ────────────────────────────────────────────────────────────────────
-st.markdown("### 💾 Export Data")
+st.markdown("### Export Data")
 
 ecol1, ecol2 = st.columns(2)
 
@@ -147,7 +122,7 @@ with ecol1:
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
     st.download_button(
-        label="📥 Export as CSV",
+        label="Export as CSV",
         data=csv_buffer.getvalue(),
         file_name=f"sensor_data_{start_date}_{end_date}.csv",
         mime="text/csv",
@@ -159,13 +134,15 @@ with ecol2:
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         df_export = df.copy()
         if "timestamp" in df_export.columns:
-            df_export["timestamp"] = df_export["timestamp"].dt.tz_localize(None)
+            try:
+                df_export["timestamp"] = df_export["timestamp"].dt.tz_localize(None)
+            except Exception:
+                pass
         df_export.to_excel(writer, index=False, sheet_name="Sensor Data")
-        stats_df = df.describe()
-        stats_df.to_excel(writer, sheet_name="Statistics")
+        df.describe().to_excel(writer, sheet_name="Statistics")
     excel_buffer.seek(0)
     st.download_button(
-        label="📊 Export as Excel",
+        label="Export as Excel",
         data=excel_buffer.getvalue(),
         file_name=f"sensor_data_{start_date}_{end_date}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -173,9 +150,9 @@ with ecol2:
 
 st.markdown("---")
 
-# ── Delete data (protected) ───────────────────────────────────────────────────
-with st.expander("🗑️ Delete Data (use with caution)"):
-    st.warning("⚠️ This will permanently delete data from BigQuery.")
+# ── Delete ────────────────────────────────────────────────────────────────────
+with st.expander("Delete Data (use with caution)"):
+    st.warning("This will permanently delete data from BigQuery.")
     confirm_text = st.text_input("Type DELETE to confirm:")
     if st.button("Delete selected period", type="secondary"):
         if confirm_text == "DELETE":
