@@ -16,168 +16,64 @@ SWISS_OFFSET = pd.Timedelta(hours=2)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: #0a0f1e;
-        border-right: 1px solid #1a2744;
-    }
-
-    /* Main background */
-    .stApp {
-        background: #060d1f;
-    }
-
-    /* Metric cards */
     div[data-testid="stMetric"] {
-        background: linear-gradient(145deg, #0d1f3c, #071428);
         border-radius: 14px;
         padding: 20px 18px;
-        border: 1px solid #1e3a6e;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 32px rgba(30,90,200,0.2);
-        border-color: #2d5aaa;
-    }
-    div[data-testid="stMetric"] label,
-    div[data-testid="stMetric"] [data-testid="stMetricLabel"] p {
-        color: #7a9cc4 !important;
-        font-size: 0.75rem !important;
-        font-weight: 500 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-        color: #e8f0fe !important;
-        font-size: 1.8rem !important;
-        font-weight: 600 !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        letter-spacing: -0.02em;
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
-        color: #4ade80 !important;
-        font-size: 0.78rem !important;
-    }
-
-    /* Section titles */
-    .section-title {
-        color: #4a9eff;
-        font-size: 0.72rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        margin-bottom: 16px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #1a2e52;
-    }
-
-    /* Page title */
-    .page-header {
-        display: flex;
-        align-items: baseline;
-        gap: 12px;
-        margin-bottom: 4px;
-    }
-    .page-title {
-        font-size: 1.6rem;
-        font-weight: 600;
-        color: #e8f0fe;
-        letter-spacing: -0.03em;
-    }
-    .page-subtitle {
-        font-size: 0.8rem;
-        color: #4a6fa8;
-        font-weight: 400;
-    }
-
-    /* Weather cards */
-    .weather-card {
-        background: linear-gradient(145deg, #0d1f3c, #071428);
-        border-radius: 14px;
-        padding: 16px;
-        border: 1px solid #1e3a6e;
-        text-align: center;
+        border: 1px solid rgba(128,128,128,0.2);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         transition: transform 0.2s ease;
     }
-    .weather-card:hover {
-        transform: translateY(-2px);
-        border-color: #2d5aaa;
+    div[data-testid="stMetric"]:hover { transform: translateY(-2px); }
+    div[data-testid="stMetric"] label,
+    div[data-testid="stMetric"] [data-testid="stMetricLabel"] p {
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        opacity: 0.55;
     }
-    .forecast-day { font-weight: 600; color: #7ab3ff; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .forecast-icon { font-size: 1.6rem; margin: 8px 0; }
-    .forecast-temp { color: #e8f0fe; font-size: 0.88rem; font-family: 'JetBrains Mono', monospace; }
-    .forecast-rain { color: #4a9eff; font-size: 0.75rem; margin-top: 4px; }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricDelta"] { font-size: 0.78rem !important; }
 
-    /* Alert boxes */
-    .alert-box {
-        padding: 12px 16px;
-        border-radius: 10px;
-        margin: 6px 0;
-        font-size: 0.875rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(128,128,128,0.15);
+        color: #1a56db;
     }
-    .alert-warning {
-        background: rgba(251,191,36,0.08);
-        border: 1px solid rgba(251,191,36,0.25);
-        color: #fbbf24;
-    }
-    .alert-danger {
-        background: rgba(239,68,68,0.08);
-        border: 1px solid rgba(239,68,68,0.25);
-        color: #f87171;
-    }
-    .alert-success {
-        background: rgba(74,222,128,0.08);
-        border: 1px solid rgba(74,222,128,0.2);
-        color: #4ade80;
-    }
-
-    /* Dataframe */
-    [data-testid="stDataFrame"] {
+    .weather-card {
         border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #1a2e52;
+        padding: 14px;
+        border: 1px solid rgba(128,128,128,0.15);
+        text-align: center;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
     }
+    .forecast-day  { font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #1a56db; }
+    .forecast-icon { font-size: 1.6rem; margin: 8px 0; }
+    .forecast-temp { font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; }
+    .forecast-rain { font-size: 0.72rem; margin-top: 4px; color: #3b82f6; }
+    .forecast-desc { font-size: 0.7rem; opacity: 0.45; margin-top: 2px; }
 
-    /* Divider */
-    hr {
-        border-color: #0f1e38 !important;
-        margin: 24px 0 !important;
-    }
-
-    /* Button */
-    .stButton button {
-        background: #0d1f3c;
-        color: #7ab3ff;
-        border: 1px solid #1e3a6e;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        padding: 6px 16px;
-        transition: all 0.2s ease;
-    }
-    .stButton button:hover {
-        background: #1a3460;
-        border-color: #4a9eff;
-        color: #e8f0fe;
-    }
+    .alert-box { padding: 12px 16px; border-radius: 10px; margin: 6px 0; font-size: 0.875rem; font-weight: 500; }
+    .alert-warning { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #b45309; }
+    .alert-danger  { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #b91c1c; }
+    .alert-success { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.25); color: #15803d; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ────────────────────────────────────────────────────────────────────
 col_title, col_refresh, col_time = st.columns([3, 1, 2])
 with col_title:
-    st.markdown('<div class="page-title">Plant Monitor</div>', unsafe_allow_html=True)
+    st.markdown("## Plant Monitor")
 with col_refresh:
     if st.button("↻ Refresh"):
         st.cache_data.clear()
@@ -195,7 +91,6 @@ with col_time:
 
 st.markdown("---")
 
-# ── Indoor Sensors ────────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Indoor Sensor Readings</div>', unsafe_allow_html=True)
 
 if latest:
@@ -228,7 +123,6 @@ else:
 
 st.markdown("---")
 
-# ── Previous Readings ─────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Previous Readings</div>', unsafe_allow_html=True)
 
 recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6), limit=11)
@@ -246,7 +140,6 @@ else:
 
 st.markdown("---")
 
-# ── Outdoor Weather ───────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Outdoor Weather — Lausanne</div>', unsafe_allow_html=True)
 
 if weather:
@@ -278,7 +171,7 @@ if weather:
                     <div class="forecast-icon">{day['icon']}</div>
                     <div class="forecast-temp">{day['temp_max']}° / {day['temp_min']}°</div>
                     <div class="forecast-rain">{day['rain_prob']}% rain</div>
-                    <div style="color:#4a6fa8;font-size:0.72rem;margin-top:4px">{day['description']}</div>
+                    <div class="forecast-desc">{day['description']}</div>
                 </div>
                 """, unsafe_allow_html=True)
 else:
@@ -286,14 +179,12 @@ else:
 
 st.markdown("---")
 
-# ── Alerts ────────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Alerts</div>', unsafe_allow_html=True)
 
 has_alert = False
 if latest:
     hum = latest.get("humidity")
     temp = latest.get("temperature")
-
     if hum and hum < 40:
         st.markdown('<div class="alert-box alert-warning">⚠ Humidity below 40% — consider using a humidifier</div>', unsafe_allow_html=True)
         has_alert = True
@@ -312,7 +203,6 @@ if not has_alert:
 
 st.markdown("---")
 
-# ── Historical Charts ─────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Historical Data — Last 7 Days</div>', unsafe_allow_html=True)
 
 if not hourly_df.empty:
@@ -323,38 +213,48 @@ if not hourly_df.empty:
     hourly_filled = full_grid.merge(hourly_df, on="hour", how="left")
 
     CHART_THEME = dict(
-        template="plotly_dark",
+        template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(6,13,31,0.6)",
+        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=50, r=20, t=40, b=40),
-        height=260,
-        font=dict(family="Inter, sans-serif", size=11, color="#7a9cc4"),
-        xaxis=dict(gridcolor="#0f1e38", showline=False, tickfont=dict(color="#4a6fa8")),
-        yaxis=dict(gridcolor="#0f1e38", showline=False, tickfont=dict(color="#4a6fa8")),
-        title_font=dict(size=13, color="#7ab3ff", family="Inter, sans-serif"),
+        height=280,
+        font=dict(family="Inter, sans-serif", size=11),
+        xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False),
+        yaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False),
+        title_font=dict(size=13, family="Inter, sans-serif"),
     )
 
     charts = [
-        ("avg_temperature", "Temperature (°C)", "°C", "#ff6b4a"),
-        ("avg_humidity", "Humidity (%)", "%", "#4a9eff"),
-        ("avg_soil_raw", "Soil Moisture — Raw ADC", "ADC", "#4ade80"),
-        ("avg_pressure", "Atmospheric Pressure (hPa)", "hPa", "#c084fc"),
+        ("avg_temperature", "Temperature (°C)", "°C", "#f97316"),
+        ("avg_humidity",    "Humidity (%)",      "%",  "#3b82f6"),
+        ("avg_soil_raw",    "Soil Raw ADC",       "ADC","#22c55e"),
+        ("avg_pressure",    "Pressure (hPa)",     "hPa","#a855f7"),
     ]
 
     for col, title, unit, color in charts:
+        series = hourly_filled[col].dropna()
+        if series.empty:
+            continue
+        padding = (series.max() - series.min()) * 0.15 or 1
+        y_min = series.min() - padding
+        y_max = series.max() + padding
+
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=hourly_filled["hour"], y=hourly_filled[col],
             mode="lines", name=unit,
-            line=dict(color=color, width=1.8),
+            line=dict(color=color, width=2),
             connectgaps=False
         ))
         if col == "avg_humidity":
-            fig.add_hrect(y0=40, y1=60, fillcolor="rgba(74,222,128,0.06)",
-                          annotation_text="Optimal", annotation_position="top left",
-                          annotation_font_color="#4ade80", line_width=0)
-        fig.update_layout(title=title, yaxis_title=unit, xaxis_title="", showlegend=False, **CHART_THEME)
+            fig.add_hrect(y0=40, y1=60, fillcolor="rgba(34,197,94,0.08)",
+                          annotation_text="Optimal zone", annotation_position="top left",
+                          annotation_font_size=10, line_width=0)
+        fig.update_layout(
+            title=title, yaxis_title=unit, xaxis_title="",
+            showlegend=False, yaxis_range=[y_min, y_max],
+            **CHART_THEME
+        )
         st.plotly_chart(fig, use_container_width=True)
-
 else:
     st.info("No historical data available yet.")
