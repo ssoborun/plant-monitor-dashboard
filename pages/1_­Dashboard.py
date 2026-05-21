@@ -18,14 +18,26 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
+    /* Sidebar always dark */
+    [data-testid="stSidebar"] {
+        background: #0a0f1e !important;
+        border-right: 1px solid #1a2744;
+    }
+    [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+    [data-testid="stSidebar"] a:hover { color: #ffffff !important; }
+
+    /* Metric cards */
     div[data-testid="stMetric"] {
         border-radius: 14px;
         padding: 20px 18px;
         border: 1px solid rgba(128,128,128,0.2);
         box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        transition: transform 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    div[data-testid="stMetric"]:hover { transform: translateY(-2px); }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
     div[data-testid="stMetric"] label,
     div[data-testid="stMetric"] [data-testid="stMetricLabel"] p {
         font-size: 0.72rem !important;
@@ -219,8 +231,8 @@ if not hourly_df.empty:
         margin=dict(l=50, r=20, t=40, b=40),
         height=280,
         font=dict(family="Inter, sans-serif", size=11),
-        xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False),
-        yaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False),
+        xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False, zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)", showline=False, zeroline=False, autorange=True),
         title_font=dict(size=13, family="Inter, sans-serif"),
     )
 
@@ -235,9 +247,6 @@ if not hourly_df.empty:
         series = hourly_filled[col].dropna()
         if series.empty:
             continue
-        padding = (series.max() - series.min()) * 0.15 or 1
-        y_min = series.min() - padding
-        y_max = series.max() + padding
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
@@ -252,7 +261,7 @@ if not hourly_df.empty:
                           annotation_font_size=10, line_width=0)
         fig.update_layout(
             title=title, yaxis_title=unit, xaxis_title="",
-            showlegend=False, yaxis_range=[y_min, y_max],
+            showlegend=False,
             **CHART_THEME
         )
         st.plotly_chart(fig, use_container_width=True)
