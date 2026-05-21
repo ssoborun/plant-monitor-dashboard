@@ -10,6 +10,8 @@ from utils.bigquery_client import get_readings, get_stats, delete_readings
 
 st.set_page_config(page_title="Data Explorer", page_icon="🔍", layout="wide")
 
+SWISS_OFFSET = pd.Timedelta(hours=2)
+
 st.markdown("## Data Explorer")
 st.caption("Filter, explore, and export your raw sensor data")
 st.markdown("---")
@@ -29,8 +31,8 @@ col3, _ = st.columns([2, 1])
 with col3:
     limit = st.number_input("Max rows", min_value=100, max_value=10000, value=1000, step=100)
 
-start_dt = pd.Timestamp(start_date).replace(hour=start_hour).tz_localize("UTC")
-end_dt = pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59).tz_localize("UTC")
+start_dt = (pd.Timestamp(start_date).replace(hour=start_hour) - SWISS_OFFSET).tz_localize("UTC")
+end_dt = (pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59) - SWISS_OFFSET).tz_localize("UTC")
 
 # ── Buttons ───────────────────────────────────────────────────────────────────
 bcol1, bcol2 = st.columns([2, 1])
@@ -43,7 +45,7 @@ if load or refresh:
     with st.spinner("Fetching data from BigQuery..."):
         df = get_readings(start_date=start_dt, end_date=end_dt, limit=limit)
         if not df.empty and "timestamp" in df.columns:
-            df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+            df["timestamp"] = (df["timestamp"] + SWISS_OFFSET).dt.tz_localize(None)
         st.session_state["explorer_df"] = df
 
 if "explorer_df" not in st.session_state:
