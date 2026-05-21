@@ -53,7 +53,7 @@ if load or refresh:
         df = get_readings(start_date=start_dt, end_date=end_dt, limit=limit)
         # Convert timestamps to Swiss time for display
         if not df.empty and "timestamp" in df.columns:
-            df["timestamp"] = df["timestamp"] + SWISS_OFFSET
+            df["timestamp"] = (df["timestamp"] + SWISS_OFFSET).dt.tz_localize(None)
         st.session_state["explorer_df"] = df
         st.session_state["explorer_loaded"] = True
 
