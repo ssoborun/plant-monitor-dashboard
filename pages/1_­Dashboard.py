@@ -45,7 +45,7 @@ st.markdown("## Live Dashboard")
 
 col_refresh, col_time = st.columns([1, 4])
 with col_refresh:
-    if st.button("Refresh"):
+    if st.button("↻ Refresh"):
         st.cache_data.clear()
         st.rerun()
 
@@ -56,25 +56,70 @@ stats_24h = get_stats(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours
 
 with col_time:
     if latest and latest.get("timestamp"):
-        ts = pd.Timestamp(latest["timestamp"])
+        ts = pd.Timestamp(latest["timestamp"]) + SWISS_OFFSET
         st.caption(f"Last reading: {ts.strftime('%Y-%m-%d %H:%M:%S')}")
 
+st.markdown("---")
 
-# ── Last Readings Table ───────────────────────────────────────────────────────
-st.markdown('<div class="section-title">Last Sensor Readings</div>', unsafe_allow_html=True)
+# ── Indoor Sensors ────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">Indoor Sensor Readings</div>', unsafe_allow_html=True)
 
-recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6), limit=10)
+if latest:
+    temp = latest.get("temperature")
+    hum = latest.get("humidity")
+    pres = latest.get("pressure")
+    soil_raw = latest.get("soil_raw")
+    soil_moist = latest.get("soil_moisture")
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        delta_temp = None
+        if stats_24h.get("avg_temp") and temp:
+            delta_temp = round(temp - stats_24h["avg_temp"], 1)
+        st.metric("Temperature", f"{temp:.1f} °C" if temp else "—",
+                  delta=f"{delta_temp:+.1f}°C vs 24h avg" if delta_temp else None,
+                  help="Current indoor temperature")
+    with col2:
+        hum_status = "Optimal" if hum and 40 <= hum <= 60 else ("Too dry" if hum and hum < 40 else "Too humid")
+        st.metric("Humidity", f"{hum:.1f} %" if hum else "—",
+                  delta=hum_status, help="Optimal range: 40–60%")
+    with col3:
+        pres_status = None
+        if pres:
+            pres_status = "High pressure" if pres > 1013 else ("Low pressure" if pres < 1000 else "Normal")
+        st.metric("Pressure", f"{pres:.1f} hPa" if pres else "—",
+                  delta=pres_status, help="Atmospheric pressure")
+    with col4:
+        soil_comment = None
+        if soil_raw:
+            soil_comment = "Wet" if soil_raw < 1500 else ("Moist" if soil_raw < 2000 else "Dry")
+        st.metric("Soil Raw", f"{soil_raw}" if soil_raw else "—",
+                  delta=soil_comment, help="Raw ADC value from soil sensor")
+    with col5:
+        st.metric("Soil Moisture", f"{soil_moist} %" if soil_moist else "—",
+                  help="Calibrated soil moisture percentage")
+else:
+    st.warning("No sensor data available. Check your BigQuery connection.")
+
+st.markdown("---")
+
+# ── Last Readings Table (skip first row = already shown in cards) ─────────────
+st.markdown('<div class="section-title">Previous Readings</div>', unsafe_allow_html=True)
+
+recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6), limit=11)
 
 if not recent_df.empty:
     display_recent = recent_df.copy()
     if "timestamp" in display_recent.columns:
         display_recent["timestamp"] = (display_recent["timestamp"] + SWISS_OFFSET).dt.strftime("%Y-%m-%d %H:%M:%S")
+    display_recent = display_recent.sort_values("timestamp", ascending=False).reset_index(drop=True)
+    display_recent = display_recent.iloc[1:]  # Skip the first (most recent) row
     cols_order = [c for c in ["timestamp", "temperature", "humidity", "pressure", "soil_raw", "soil_moisture"] if c in display_recent.columns]
     st.dataframe(
-        display_recent[cols_order].sort_values("timestamp", ascending=False).reset_index(drop=True),
+        display_recent[cols_order].reset_index(drop=True),
         use_container_width=True, height=200, hide_index=True
     )
-    st.caption("Last 10 readings")
+    st.caption("Previous 10 readings")
 else:
     st.info("No recent readings available.")
 
@@ -86,7 +131,7 @@ st.markdown('<div class="section-title">Outdoor Weather — Lausanne</div>', uns
 if weather:
     wcol1, wcol2, wcol3, wcol4, wcol5 = st.columns(5)
     with wcol1:
-        st.metric(weather['city'], f"{weather['temp']} °C", delta=f"Feels {weather['feels_like']}°C")
+        st.metric(f"{weather['icon']} {weather['city']}", f"{weather['temp']} °C", delta=f"Feels {weather['feels_like']}°C")
     with wcol2:
         st.metric("Condition", weather["description"])
     with wcol3:
@@ -129,10 +174,10 @@ if latest:
     temp = latest.get("temperature")
 
     if hum and hum < 40:
-        st.markdown('<div class="alert-box alert-warning">Humidity below 40% — consider using a humidifier</div>', unsafe_allow_html=True)
+        st.markdown('<div class="alert-box alert-warning">⚠ Humidity below 40% — consider using a humidifier</div>', unsafe_allow_html=True)
         has_alert = True
     if hum and hum > 70:
-        st.markdown('<div class="alert-box alert-warning">Humidity above 70% — check for condensation or mold risk</div>', unsafe_allow_html=True)
+        st.markdown('<div class="alert-box alert-warning">⚠ Humidity above 70% — check for condensation or mold risk</div>', unsafe_allow_html=True)
         has_alert = True
     if temp and temp > 28:
         st.markdown(f'<div class="alert-box alert-danger">High indoor temperature: {temp:.1f}°C</div>', unsafe_allow_html=True)
@@ -142,7 +187,7 @@ if latest:
         has_alert = True
 
 if not has_alert:
-    st.markdown('<div class="alert-box alert-success">All conditions normal</div>', unsafe_allow_html=True)
+    st.markdown('<div class="alert-box alert-success">✓ All conditions normal</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
