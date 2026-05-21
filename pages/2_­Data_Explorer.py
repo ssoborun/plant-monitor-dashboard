@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import io
 import sys
 import os
@@ -102,15 +103,55 @@ if numeric_cols and "timestamp" in df.columns:
         options=numeric_cols,
         default=[numeric_cols[0]]
     )
+
     if selected_metrics:
         df_sorted = df.sort_values("timestamp").dropna(subset=selected_metrics, how="all")
-        df_melted = df_sorted.melt(id_vars="timestamp", value_vars=selected_metrics,
-                                   var_name="Metric", value_name="Value")
-        fig = px.line(df_melted, x="timestamp", y="Value", color="Metric",
-                      title="Sensor metrics over time",
-                      labels={"timestamp": "Time", "Value": ""},
-                      template="plotly_dark", height=350)
-        fig.update_traces(connectgaps=False)
+        colors = ["#4fc3f7", "#ff7043", "#66bb6a", "#ab47bc", "#ffa726"]
+
+        if len(selected_metrics) == 2:
+            # Dual Y-axis chart
+            m1, m2 = selected_metrics[0], selected_metrics[1]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=df_sorted["timestamp"], y=df_sorted[m1],
+                name=m1, line=dict(color=colors[0], width=2),
+                connectgaps=False, yaxis="y1"
+            ))
+            fig.add_trace(go.Scatter(
+                x=df_sorted["timestamp"], y=df_sorted[m2],
+                name=m2, line=dict(color=colors[1], width=2),
+                connectgaps=False, yaxis="y2"
+            ))
+            fig.update_layout(
+                title=f"{m1} vs {m2}",
+                xaxis=dict(title="Time"),
+                yaxis=dict(title=m1, color=colors[0]),
+                yaxis2=dict(title=m2, color=colors[1], overlaying="y", side="right"),
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=400,
+                legend=dict(x=0.01, y=0.99)
+            )
+            st.caption("Dual Y-axis — each metric uses its own scale on left/right")
+        else:
+            # Standard overlay chart
+            fig = go.Figure()
+            for i, metric in enumerate(selected_metrics):
+                fig.add_trace(go.Scatter(
+                    x=df_sorted["timestamp"], y=df_sorted[metric],
+                    name=metric, line=dict(color=colors[i % len(colors)], width=2),
+                    connectgaps=False
+                ))
+            fig.update_layout(
+                title="Sensor metrics over time",
+                xaxis_title="Time", yaxis_title="Value",
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=400
+            )
+
         st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")

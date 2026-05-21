@@ -103,7 +103,7 @@ else:
 
 st.markdown("---")
 
-# ── Last Readings Table (skip first row = already shown in cards) ─────────────
+# ── Last Readings Table ───────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Previous Readings</div>', unsafe_allow_html=True)
 
 recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6), limit=11)
@@ -113,7 +113,7 @@ if not recent_df.empty:
     if "timestamp" in display_recent.columns:
         display_recent["timestamp"] = (display_recent["timestamp"] + SWISS_OFFSET).dt.strftime("%Y-%m-%d %H:%M:%S")
     display_recent = display_recent.sort_values("timestamp", ascending=False).reset_index(drop=True)
-    display_recent = display_recent.iloc[1:]  # Skip the first (most recent) row
+    display_recent = display_recent.iloc[1:]
     cols_order = [c for c in ["timestamp", "temperature", "humidity", "pressure", "soil_raw", "soil_moisture"] if c in display_recent.columns]
     st.dataframe(
         display_recent[cols_order].reset_index(drop=True),
@@ -195,8 +195,6 @@ st.markdown("---")
 st.markdown('<div class="section-title">Historical Data — Last 7 Days</div>', unsafe_allow_html=True)
 
 if not hourly_df.empty:
-    tab1, tab2, tab3, tab4 = st.tabs(["Temperature", "Humidity", "Soil Raw", "Pressure"])
-
     CHART_THEME = dict(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -205,46 +203,43 @@ if not hourly_df.empty:
         height=300,
     )
 
-    with tab1:
-        fig = go.Figure()
-        df_valid = hourly_df.dropna(subset=["avg_temperature"])
-        fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_temperature"],
-            mode="lines+markers", name="Temp °C",
-            line=dict(color="#ff7043", width=2),
-            fill="tozeroy", fillcolor="rgba(255,112,67,0.1)", connectgaps=False))
-        fig.update_layout(title="Temperature (°C)", xaxis_title="Time", yaxis_title="°C", **CHART_THEME)
-        st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    df_valid = hourly_df.dropna(subset=["avg_temperature"])
+    fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_temperature"],
+        mode="lines+markers", name="Temp °C",
+        line=dict(color="#ff7043", width=2),
+        fill="tozeroy", fillcolor="rgba(255,112,67,0.1)", connectgaps=False))
+    fig.update_layout(title="Temperature (°C)", xaxis_title="Time", yaxis_title="°C", **CHART_THEME)
+    st.plotly_chart(fig, use_container_width=True)
 
-    with tab2:
-        fig = go.Figure()
-        df_valid = hourly_df.dropna(subset=["avg_humidity"])
-        fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_humidity"],
-            mode="lines+markers", name="Humidity %",
-            line=dict(color="#29b6f6", width=2),
-            fill="tozeroy", fillcolor="rgba(41,182,246,0.1)", connectgaps=False))
-        fig.add_hrect(y0=40, y1=60, fillcolor="rgba(76,175,80,0.1)",
-                      annotation_text="Optimal zone", annotation_position="top left", line_width=0)
-        fig.update_layout(title="Humidity (%)", xaxis_title="Time", yaxis_title="%", **CHART_THEME)
-        st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    df_valid = hourly_df.dropna(subset=["avg_humidity"])
+    fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_humidity"],
+        mode="lines+markers", name="Humidity %",
+        line=dict(color="#29b6f6", width=2),
+        fill="tozeroy", fillcolor="rgba(41,182,246,0.1)", connectgaps=False))
+    fig.add_hrect(y0=40, y1=60, fillcolor="rgba(76,175,80,0.1)",
+                  annotation_text="Optimal zone", annotation_position="top left", line_width=0)
+    fig.update_layout(title="Humidity (%)", xaxis_title="Time", yaxis_title="%", **CHART_THEME)
+    st.plotly_chart(fig, use_container_width=True)
 
-    with tab3:
-        fig = go.Figure()
-        df_valid = hourly_df.dropna(subset=["avg_soil_raw"])
-        fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_soil_raw"],
-            mode="lines+markers", name="Soil Raw ADC",
-            line=dict(color="#66bb6a", width=2),
-            fill="tozeroy", fillcolor="rgba(102,187,106,0.1)", connectgaps=False))
-        fig.update_layout(title="Soil Moisture — Raw ADC", xaxis_title="Time", yaxis_title="ADC", **CHART_THEME)
-        st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    df_valid = hourly_df.dropna(subset=["avg_soil_raw"])
+    fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_soil_raw"],
+        mode="lines+markers", name="Soil Raw ADC",
+        line=dict(color="#66bb6a", width=2),
+        fill="tozeroy", fillcolor="rgba(102,187,106,0.1)", connectgaps=False))
+    fig.update_layout(title="Soil Moisture — Raw ADC", xaxis_title="Time", yaxis_title="ADC", **CHART_THEME)
+    st.plotly_chart(fig, use_container_width=True)
 
-    with tab4:
-        fig = go.Figure()
-        df_valid = hourly_df.dropna(subset=["avg_pressure"])
-        fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_pressure"],
-            mode="lines+markers", name="Pressure hPa",
-            line=dict(color="#ab47bc", width=2),
-            fill="tozeroy", fillcolor="rgba(171,71,188,0.1)", connectgaps=False))
-        fig.update_layout(title="Atmospheric Pressure (hPa)", xaxis_title="Time", yaxis_title="hPa", **CHART_THEME)
-        st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    df_valid = hourly_df.dropna(subset=["avg_pressure"])
+    fig.add_trace(go.Scatter(x=df_valid["hour"], y=df_valid["avg_pressure"],
+        mode="lines+markers", name="Pressure hPa",
+        line=dict(color="#ab47bc", width=2),
+        fill="tozeroy", fillcolor="rgba(171,71,188,0.1)", connectgaps=False))
+    fig.update_layout(title="Atmospheric Pressure (hPa)", xaxis_title="Time", yaxis_title="hPa", **CHART_THEME)
+    st.plotly_chart(fig, use_container_width=True)
+
 else:
     st.info("No historical data available yet.")
