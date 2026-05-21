@@ -195,6 +195,17 @@ st.markdown("---")
 st.markdown('<div class="section-title">Historical Data — Last 7 Days</div>', unsafe_allow_html=True)
 
 if not hourly_df.empty:
+    # Create full hourly grid and merge — missing hours become NaN (real gaps)
+    full_range = pd.date_range(
+        start=hourly_df["hour"].min(),
+        end=hourly_df["hour"].max(),
+        freq="h"
+    )
+    full_grid = pd.DataFrame({"hour": full_range})
+    hourly_df["hour"] = pd.to_datetime(hourly_df["hour"]).dt.tz_localize(None)
+    full_grid["hour"] = full_grid["hour"].dt.tz_localize(None)
+    hourly_filled = full_grid.merge(hourly_df, on="hour", how="left")
+
     CHART_THEME = dict(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -204,9 +215,8 @@ if not hourly_df.empty:
     )
 
     fig = go.Figure()
-    df_valid = hourly_df.dropna(subset=["avg_temperature"])
     fig.add_trace(go.Scatter(
-        x=df_valid["hour"], y=df_valid["avg_temperature"],
+        x=hourly_filled["hour"], y=hourly_filled["avg_temperature"],
         mode="lines+markers", name="Temp °C",
         line=dict(color="#ff7043", width=2),
         connectgaps=False
@@ -215,9 +225,8 @@ if not hourly_df.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     fig = go.Figure()
-    df_valid = hourly_df.dropna(subset=["avg_humidity"])
     fig.add_trace(go.Scatter(
-        x=df_valid["hour"], y=df_valid["avg_humidity"],
+        x=hourly_filled["hour"], y=hourly_filled["avg_humidity"],
         mode="lines+markers", name="Humidity %",
         line=dict(color="#29b6f6", width=2),
         connectgaps=False
@@ -228,9 +237,8 @@ if not hourly_df.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     fig = go.Figure()
-    df_valid = hourly_df.dropna(subset=["avg_soil_raw"])
     fig.add_trace(go.Scatter(
-        x=df_valid["hour"], y=df_valid["avg_soil_raw"],
+        x=hourly_filled["hour"], y=hourly_filled["avg_soil_raw"],
         mode="lines+markers", name="Soil Raw ADC",
         line=dict(color="#66bb6a", width=2),
         connectgaps=False
@@ -239,9 +247,8 @@ if not hourly_df.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     fig = go.Figure()
-    df_valid = hourly_df.dropna(subset=["avg_pressure"])
     fig.add_trace(go.Scatter(
-        x=df_valid["hour"], y=df_valid["avg_pressure"],
+        x=hourly_filled["hour"], y=hourly_filled["avg_pressure"],
         mode="lines+markers", name="Pressure hPa",
         line=dict(color="#ab47bc", width=2),
         connectgaps=False
