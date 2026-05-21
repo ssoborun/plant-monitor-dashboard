@@ -13,17 +13,28 @@ st.set_page_config(page_title="Alerts", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>
-    .alert-box { padding: 14px 18px; border-radius: 10px; margin: 8px 0; font-weight: 500; }
-    .alert-danger  { background: rgba(244,67,54,0.15); border-left: 4px solid #f44336; color: #ef9a9a; }
-    .alert-warning { background: rgba(255,193,7,0.15); border-left: 4px solid #ffc107; color: #ffd54f; }
-    .alert-success { background: rgba(76,175,80,0.15); border-left: 4px solid #4caf50; color: #a5d6a7; }
-    .alert-info    { background: rgba(79,195,247,0.15); border-left: 4px solid #4fc3f7; color: #81d4fa; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+    [data-testid="stSidebar"] { background: #0a0f1e !important; border-right: 1px solid #1a2744; }
+    [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+
+    .section-title {
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.18em; margin-bottom: 16px; padding-bottom: 8px;
+        border-bottom: 1px solid rgba(128,128,128,0.15); color: #1a56db;
+    }
+    .alert-box { padding: 12px 16px; border-radius: 10px; margin: 6px 0; font-size: 0.875rem; font-weight: 500; }
+    .alert-warning { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #b45309; }
+    .alert-danger  { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #b91c1c; }
+    .alert-success { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.25); color: #15803d; }
+    .alert-info    { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #1d4ed8; }
     .threshold-card {
-        background: linear-gradient(135deg, #1e3a5f, #0f2d4a);
-        border-radius: 12px; padding: 16px; border: 1px solid #2a5a8f;
+        border-radius: 12px; padding: 16px;
+        border: 1px solid rgba(128,128,128,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         margin-bottom: 12px;
     }
-    .section-title { color: #4fc3f7; font-size: 1.05rem; font-weight: 600; margin-bottom: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,18 +42,12 @@ st.markdown("## Alerts & Thresholds")
 st.caption("Monitor your environment and get notified when conditions are out of range")
 st.markdown("---")
 
-# ── Sensor selection ──────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">Select sensors to monitor</div>', unsafe_allow_html=True)
-
-sensors = st.multiselect(
-    "Active sensors",
+st.markdown('<div class="section-title">Select Sensors to Monitor</div>', unsafe_allow_html=True)
+sensors = st.multiselect("Active sensors",
     options=["Temperature", "Humidity", "Soil Raw", "Pressure"],
-    default=["Temperature", "Humidity"]
-)
+    default=["Temperature", "Humidity"])
 
 st.markdown("---")
-
-# ── Threshold configuration ───────────────────────────────────────────────────
 st.markdown('<div class="section-title">Threshold Configuration</div>', unsafe_allow_html=True)
 
 temp_min = temp_max = hum_min = hum_max = soil_threshold = pressure_min = None
@@ -88,8 +93,6 @@ else:
     st.info("Select at least one sensor above to configure thresholds.")
 
 st.markdown("---")
-
-# ── Current alerts ────────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Current Alerts</div>', unsafe_allow_html=True)
 
 latest = get_latest_reading()
@@ -133,8 +136,6 @@ else:
     st.markdown('<div class="alert-box alert-success">✓ All conditions are within normal thresholds</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-
-# ── Historical violations ─────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Threshold Violations</div>', unsafe_allow_html=True)
 
 if st.button("Analyze violations"):
@@ -148,15 +149,12 @@ if st.button("Analyze violations"):
             st.caption(f"Data from {ts_min.strftime('%Y-%m-%d %H:%M')} to {ts_max.strftime('%Y-%m-%d %H:%M')}")
 
         violations = []
-
         if "Temperature" in sensors and "temperature" in df.columns and temp_min and temp_max:
             count = len(df[(df["temperature"] < temp_min) | (df["temperature"] > temp_max)])
             violations.append(("Temperature", count))
-
         if "Humidity" in sensors and "humidity" in df.columns and hum_min and hum_max:
             count = len(df[(df["humidity"] < hum_min) | (df["humidity"] > hum_max)])
             violations.append(("Humidity", count))
-
         if "Soil Raw" in sensors and "soil_raw" in df.columns and soil_threshold:
             count = len(df[df["soil_raw"] > soil_threshold])
             violations.append(("Soil (dry)", count))
@@ -168,43 +166,35 @@ if st.button("Analyze violations"):
                     color = "🔴" if count > 10 else ("🟡" if count > 0 else "🟢")
                     st.metric(f"{color} {name}", f"{count:,} violations")
 
+        CHART_THEME = dict(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)",
+                           plot_bgcolor="rgba(0,0,0,0)", height=300,
+                           margin=dict(l=40, r=20, t=40, b=40),
+                           font=dict(family="Inter, sans-serif", size=11),
+                           xaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)"),
+                           yaxis=dict(showgrid=True, gridcolor="rgba(128,128,128,0.1)"))
+
         if "Temperature" in sensors and "temperature" in df.columns and temp_min and temp_max:
             df_sorted = df.sort_values("timestamp")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df_sorted["timestamp"], y=df_sorted["temperature"],
-                mode="lines", name="Temperature",
-                line=dict(color="#ff7043", width=1.5),
-                connectgaps=False
-            ))
-            fig.add_hrect(y0=temp_min, y1=temp_max, fillcolor="rgba(76,175,80,0.1)",
+            fig.add_trace(go.Scatter(x=df_sorted["timestamp"], y=df_sorted["temperature"],
+                mode="lines", name="Temperature", line=dict(color="#f97316", width=1.5), connectgaps=False))
+            fig.add_hrect(y0=temp_min, y1=temp_max, fillcolor="rgba(34,197,94,0.08)",
                           annotation_text="Safe zone", line_width=0)
-            fig.add_hline(y=temp_max, line_dash="dash", line_color="#f44336", annotation_text="Max")
-            fig.add_hline(y=temp_min, line_dash="dash", line_color="#2196f3", annotation_text="Min")
-            fig.update_layout(title="Temperature vs Thresholds",
-                              template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
-                              plot_bgcolor="rgba(0,0,0,0)", height=300,
-                              margin=dict(l=40, r=20, t=40, b=40))
+            fig.add_hline(y=temp_max, line_dash="dash", line_color="#ef4444", annotation_text="Max")
+            fig.add_hline(y=temp_min, line_dash="dash", line_color="#3b82f6", annotation_text="Min")
+            fig.update_layout(title="Temperature vs Thresholds", **CHART_THEME)
             st.plotly_chart(fig, use_container_width=True)
 
         if "Humidity" in sensors and "humidity" in df.columns and hum_min and hum_max:
             df_sorted = df.sort_values("timestamp")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df_sorted["timestamp"], y=df_sorted["humidity"],
-                mode="lines", name="Humidity",
-                line=dict(color="#29b6f6", width=1.5),
-                connectgaps=False
-            ))
-            fig.add_hrect(y0=hum_min, y1=hum_max, fillcolor="rgba(76,175,80,0.1)",
+            fig.add_trace(go.Scatter(x=df_sorted["timestamp"], y=df_sorted["humidity"],
+                mode="lines", name="Humidity", line=dict(color="#3b82f6", width=1.5), connectgaps=False))
+            fig.add_hrect(y0=hum_min, y1=hum_max, fillcolor="rgba(34,197,94,0.08)",
                           annotation_text="Safe zone", line_width=0)
-            fig.add_hline(y=hum_max, line_dash="dash", line_color="#f44336", annotation_text="Max")
-            fig.add_hline(y=hum_min, line_dash="dash", line_color="#2196f3", annotation_text="Min")
-            fig.update_layout(title="Humidity vs Thresholds",
-                              template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
-                              plot_bgcolor="rgba(0,0,0,0)", height=300,
-                              margin=dict(l=40, r=20, t=40, b=40))
+            fig.add_hline(y=hum_max, line_dash="dash", line_color="#ef4444", annotation_text="Max")
+            fig.add_hline(y=hum_min, line_dash="dash", line_color="#3b82f6", annotation_text="Min")
+            fig.update_layout(title="Humidity vs Thresholds", **CHART_THEME)
             st.plotly_chart(fig, use_container_width=True)
-
     else:
         st.warning("No data found.")
