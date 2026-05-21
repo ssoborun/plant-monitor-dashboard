@@ -14,29 +14,46 @@ st.markdown("## 🔍 Data Explorer")
 st.caption("Filter, explore, and export your raw sensor data")
 st.markdown("---")
 
-# ── Date filters ─────────────────────────────────────────────────────────────
-col1, col2, col3 = st.columns([2, 2, 1])
+# ── Date + Hour filters ───────────────────────────────────────────────────────
+col1, col2 = st.columns(2)
 
 with col1:
     start_date = st.date_input(
         "📅 Start date",
         value=pd.Timestamp.now() - pd.Timedelta(days=7)
     )
+    start_hour = st.slider("Start hour", 0, 23, 0)
+
 with col2:
     end_date = st.date_input(
         "📅 End date",
         value=pd.Timestamp.now()
     )
+    end_hour = st.slider("End hour", 0, 23, 23)
+
+col3, col4 = st.columns([2, 1])
 with col3:
     limit = st.number_input("Max rows", min_value=100, max_value=10000, value=1000, step=100)
 
-start_dt = pd.Timestamp(start_date).tz_localize("UTC")
-end_dt = pd.Timestamp(end_date).replace(hour=23, minute=59, second=59).tz_localize("UTC")
+# Timezone: data stored in UTC, Switzerland = UTC+2
+SWISS_OFFSET = pd.Timedelta(hours=2)
 
-# ── Load button ───────────────────────────────────────────────────────────────
-if st.button("🔍 Load Data", type="primary"):
+start_dt = (pd.Timestamp(start_date).replace(hour=start_hour) - SWISS_OFFSET).tz_localize("UTC")
+end_dt = (pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59) - SWISS_OFFSET).tz_localize("UTC")
+
+# ── Load + Refresh buttons ────────────────────────────────────────────────────
+bcol1, bcol2 = st.columns([2, 1])
+with bcol1:
+    load = st.button("🔍 Load Data", type="primary")
+with bcol2:
+    refresh = st.button("🔄 Refresh")
+
+if load or refresh:
     with st.spinner("Fetching data from BigQuery..."):
         df = get_readings(start_date=start_dt, end_date=end_dt, limit=limit)
+        # Convert timestamps to Swiss time for display
+        if not df.empty and "timestamp" in df.columns:
+            df["timestamp"] = df["timestamp"] + SWISS_OFFSET
         st.session_state["explorer_df"] = df
         st.session_state["explorer_loaded"] = True
 
@@ -89,40 +106,35 @@ display_df = df[selected_cols].sort_values(
 ).reset_index(drop=True)
 
 st.dataframe(display_df, use_container_width=True, height=400)
-st.caption(f"Showing {len(display_df):,} rows")
+st.caption(f"Showing {len(display_df):,} rows — times displayed in Swiss time (UTC+2)")
 
 st.markdown("---")
 
-# ── Quick charts ──────────────────────────────────────────────────────────────
+# ── Quick charts — multi-metric overlay ───────────────────────────────────────
 st.markdown("### 📈 Quick Visualization")
 
 numeric_cols = df.select_dtypes(include="number").columns.tolist()
 if numeric_cols and "timestamp" in df.columns:
-    chart_col = st.selectbox("Select metric to plot", options=numeric_cols)
-    df_sorted = df.sort_values("timestamp")
-
-    CHART_THEME = dict(
-        template="plotly_dark",
-        height=300,
+    selected_metrics = st.multiselect(
+        "Select metrics to plot (overlay)",
+        options=numeric_cols,
+        default=[numeric_cols[0]]
     )
 
-    fig = px.line(
-        df_sorted, x="timestamp", y=chart_col,
-        title=f"{chart_col} over time",
-        labels={"timestamp": "Time", chart_col: chart_col},
-        **CHART_THEME
-    )
-    fig.update_traces(line_color="#4fc3f7")
-    st.plotly_chart(fig, use_container_width=True)
+    if selected_metrics:
+        df_sorted = df.sort_values("timestamp").dropna(subset=selected_metrics, how="all")
+        df_melted = df_sorted.melt(id_vars="timestamp", value_vars=selected_metrics,
+                                   var_name="Metric", value_name="Value")
 
-    # Distribution histogram
-    fig2 = px.histogram(
-        df, x=chart_col, nbins=30,
-        title=f"Distribution of {chart_col}",
-        **CHART_THEME
-    )
-    fig2.update_traces(marker_color="#66bb6a")
-    st.plotly_chart(fig2, use_container_width=True)
+        fig = px.line(
+            df_melted, x="timestamp", y="Value", color="Metric",
+            title="Sensor metrics over time",
+            labels={"timestamp": "Time (Swiss)", "Value": ""},
+            template="plotly_dark",
+            height=350,
+        )
+        fig.update_traces(connectgaps=False)  # No lines across missing data
+        st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
@@ -149,7 +161,6 @@ with ecol2:
         if "timestamp" in df_export.columns:
             df_export["timestamp"] = df_export["timestamp"].dt.tz_localize(None)
         df_export.to_excel(writer, index=False, sheet_name="Sensor Data")
-        # Add stats sheet
         stats_df = df.describe()
         stats_df.to_excel(writer, sheet_name="Statistics")
     excel_buffer.seek(0)

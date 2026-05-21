@@ -6,10 +6,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.bigquery_client import get_latest_reading, get_hourly_averages, get_stats
+from utils.bigquery_client import get_latest_reading, get_hourly_averages, get_stats, get_readings
 from utils.weather import get_current_weather, get_forecast, get_weather_alerts
 
 st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
+
+SWISS_OFFSET = pd.Timedelta(hours=2)
 
 # ── Custom CSS ──────────────────────────────────────────────────────────────
 st.markdown("""
@@ -55,8 +57,8 @@ stats_24h = get_stats(
 
 with col_time:
     if latest and latest.get("timestamp"):
-        ts = pd.Timestamp(latest["timestamp"])
-        st.caption(f"Last reading: **{ts.strftime('%Y-%m-%d %H:%M:%S')} UTC**")
+        ts = pd.Timestamp(latest["timestamp"]) + SWISS_OFFSET
+        st.caption(f"Last reading: **{ts.strftime('%Y-%m-%d %H:%M:%S')} (Swiss time)**")
 
 st.markdown("---")
 
@@ -68,30 +70,95 @@ if latest:
     hum = latest.get("humidity")
     pres = latest.get("pressure")
     soil_raw = latest.get("soil_raw")
-    soil_moist = latest.get("soil_moisture", "—")
+    soil_moist = latest.get("soil_moisture")
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         delta_temp = None
         if stats_24h.get("avg_temp") and temp:
             delta_temp = round(temp - stats_24h["avg_temp"], 1)
-        st.metric("🌡️ Temperature", f"{temp:.1f} °C" if temp else "—",
-                  delta=f"{delta_temp:+.1f}°C vs 24h avg" if delta_temp else None)
+        st.metric(
+            "🌡️ Temperature",
+            f"{temp:.1f} °C" if temp else "—",
+            delta=f"{delta_temp:+.1f}°C vs 24h avg" if delta_temp else None,
+            help="Current indoor temperature"
+        )
     with col2:
-        hum_status = "✅ Good" if hum and 40 <= hum <= 60 else ("⬇️ Low" if hum and hum < 40 else "⬆️ High")
-        st.metric("💧 Humidity", f"{hum:.1f} %" if hum else "—", delta=hum_status)
+        hum_status = "✅ Optimal" if hum and 40 <= hum <= 60 else ("⬇️ Too dry" if hum and hum < 40 else "⬆️ Too humid")
+        st.metric(
+            "💧 Humidity",
+            f"{hum:.1f} %" if hum else "—",
+            delta=hum_status,
+            help="Optimal range: 40–60%"
+        )
     with col3:
-        st.metric("🔵 Pressure", f"{pres:.1f} hPa" if pres else "—")
+        pres_status = None
+        if pres:
+            if pres > 1013:
+                pres_status = "☀️ High pressure"
+            elif pres < 1000:
+                pres_status = "🌧️ Low pressure"
+            else:
+                pres_status = "🌤️ Normal"
+        st.metric(
+            "🔵 Pressure",
+            f"{pres:.1f} hPa" if pres else "—",
+            delta=pres_status,
+            help="Atmospheric pressure"
+        )
     with col4:
-        st.metric("🌱 Soil Raw", f"{soil_raw}" if soil_raw else "—")
+        soil_comment = None
+        if soil_raw:
+            if soil_raw < 1500:
+                soil_comment = "💧 Wet soil"
+            elif soil_raw < 2000:
+                soil_comment = "✅ Moist"
+            else:
+                soil_comment = "🏜️ Dry soil"
+        st.metric(
+            "🌱 Soil Raw",
+            f"{soil_raw}" if soil_raw else "—",
+            delta=soil_comment,
+            help="Raw ADC value from soil sensor"
+        )
     with col5:
-        st.metric("💦 Soil Moisture", soil_moist if soil_moist else "—")
+        st.metric(
+            "💦 Soil Moisture",
+            f"{soil_moist} %" if soil_moist else "—",
+            help="Calibrated soil moisture percentage"
+        )
 else:
     st.warning("No sensor data available. Check your BigQuery connection.")
 
 st.markdown("---")
 
-# ── SECTION 2: Outdoor Weather ───────────────────────────────────────────────
+# ── SECTION 2: Last Sensor Readings ─────────────────────────────────────────
+st.markdown('<div class="section-title">📋 Last Sensor Readings</div>', unsafe_allow_html=True)
+
+recent_df = get_readings(
+    start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6),
+    limit=10
+)
+
+if not recent_df.empty:
+    display_recent = recent_df.copy()
+    if "timestamp" in display_recent.columns:
+        display_recent["timestamp"] = (display_recent["timestamp"] + SWISS_OFFSET).dt.strftime("%Y-%m-%d %H:%M:%S")
+    cols_order = ["timestamp", "temperature", "humidity", "pressure", "soil_raw", "soil_moisture"]
+    cols_order = [c for c in cols_order if c in display_recent.columns]
+    st.dataframe(
+        display_recent[cols_order].sort_values("timestamp", ascending=False).reset_index(drop=True),
+        use_container_width=True,
+        height=200,
+        hide_index=True
+    )
+    st.caption("Last 10 readings — times in Swiss time (UTC+2)")
+else:
+    st.info("No recent readings available.")
+
+st.markdown("---")
+
+# ── SECTION 3: Outdoor Weather ───────────────────────────────────────────────
 st.markdown('<div class="section-title">🌍 Outdoor Weather</div>', unsafe_allow_html=True)
 
 if weather:
@@ -108,13 +175,11 @@ if weather:
     with wcol5:
         st.metric("🌅 Sunrise / Sunset", f"{weather['sunrise']} / {weather['sunset']}")
 
-    # Weather alerts
     alerts = get_weather_alerts(weather)
     for alert in alerts:
         css_class = f"alert-{alert['type']}"
         st.markdown(f'<div class="alert-box {css_class}">{alert["msg"]}</div>', unsafe_allow_html=True)
 
-    # 5-day forecast
     st.markdown("**5-Day Forecast:**")
     forecast = get_forecast()
     if forecast:
@@ -135,7 +200,7 @@ else:
 
 st.markdown("---")
 
-# ── SECTION 3: Smart Alerts ──────────────────────────────────────────────────
+# ── SECTION 4: Smart Alerts ──────────────────────────────────────────────────
 st.markdown('<div class="section-title">⚡ Smart Alerts</div>', unsafe_allow_html=True)
 
 has_alert = False
@@ -162,10 +227,13 @@ if not has_alert:
 
 st.markdown("---")
 
-# ── SECTION 4: Charts ────────────────────────────────────────────────────────
+# ── SECTION 5: Charts ────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">📈 Historical Charts (Last 7 Days)</div>', unsafe_allow_html=True)
 
 if not hourly_df.empty:
+    # Convert to Swiss time
+    hourly_df["hour"] = hourly_df["hour"] + SWISS_OFFSET
+
     tab1, tab2, tab3, tab4 = st.tabs(["🌡️ Temperature", "💧 Humidity", "🌱 Soil Raw", "🔵 Pressure"])
 
     CHART_THEME = dict(
@@ -178,49 +246,57 @@ if not hourly_df.empty:
 
     with tab1:
         fig = go.Figure()
+        df_valid = hourly_df.dropna(subset=["avg_temperature"])
         fig.add_trace(go.Scatter(
-            x=hourly_df["hour"], y=hourly_df["avg_temperature"],
+            x=df_valid["hour"], y=df_valid["avg_temperature"],
             mode="lines+markers", name="Temp °C",
             line=dict(color="#ff7043", width=2),
-            fill="tozeroy", fillcolor="rgba(255,112,67,0.1)"
+            fill="tozeroy", fillcolor="rgba(255,112,67,0.1)",
+            connectgaps=False
         ))
-        fig.update_layout(title="Temperature (°C)", xaxis_title="Time", yaxis_title="°C", **CHART_THEME)
+        fig.update_layout(title="Temperature (°C)", xaxis_title="Time (Swiss)", yaxis_title="°C", **CHART_THEME)
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
         fig = go.Figure()
+        df_valid = hourly_df.dropna(subset=["avg_humidity"])
         fig.add_trace(go.Scatter(
-            x=hourly_df["hour"], y=hourly_df["avg_humidity"],
+            x=df_valid["hour"], y=df_valid["avg_humidity"],
             mode="lines+markers", name="Humidity %",
             line=dict(color="#29b6f6", width=2),
-            fill="tozeroy", fillcolor="rgba(41,182,246,0.1)"
+            fill="tozeroy", fillcolor="rgba(41,182,246,0.1)",
+            connectgaps=False
         ))
         fig.add_hrect(y0=40, y1=60, fillcolor="rgba(76,175,80,0.1)",
                       annotation_text="Optimal zone", annotation_position="top left",
                       line_width=0)
-        fig.update_layout(title="Humidity (%)", xaxis_title="Time", yaxis_title="%", **CHART_THEME)
+        fig.update_layout(title="Humidity (%)", xaxis_title="Time (Swiss)", yaxis_title="%", **CHART_THEME)
         st.plotly_chart(fig, use_container_width=True)
 
     with tab3:
         fig = go.Figure()
+        df_valid = hourly_df.dropna(subset=["avg_soil_raw"])
         fig.add_trace(go.Scatter(
-            x=hourly_df["hour"], y=hourly_df["avg_soil_raw"],
+            x=df_valid["hour"], y=df_valid["avg_soil_raw"],
             mode="lines+markers", name="Soil Raw ADC",
             line=dict(color="#66bb6a", width=2),
-            fill="tozeroy", fillcolor="rgba(102,187,106,0.1)"
+            fill="tozeroy", fillcolor="rgba(102,187,106,0.1)",
+            connectgaps=False
         ))
-        fig.update_layout(title="Soil Moisture Raw ADC Value", xaxis_title="Time", yaxis_title="ADC", **CHART_THEME)
+        fig.update_layout(title="Soil Moisture Raw ADC Value", xaxis_title="Time (Swiss)", yaxis_title="ADC", **CHART_THEME)
         st.plotly_chart(fig, use_container_width=True)
 
     with tab4:
         fig = go.Figure()
+        df_valid = hourly_df.dropna(subset=["avg_pressure"])
         fig.add_trace(go.Scatter(
-            x=hourly_df["hour"], y=hourly_df["avg_pressure"],
+            x=df_valid["hour"], y=df_valid["avg_pressure"],
             mode="lines+markers", name="Pressure hPa",
             line=dict(color="#ab47bc", width=2),
-            fill="tozeroy", fillcolor="rgba(171,71,188,0.1)"
+            fill="tozeroy", fillcolor="rgba(171,71,188,0.1)",
+            connectgaps=False
         ))
-        fig.update_layout(title="Atmospheric Pressure (hPa)", xaxis_title="Time", yaxis_title="hPa", **CHART_THEME)
+        fig.update_layout(title="Atmospheric Pressure (hPa)", xaxis_title="Time (Swiss)", yaxis_title="hPa", **CHART_THEME)
         st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No historical data available yet.")
