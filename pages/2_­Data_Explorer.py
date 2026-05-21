@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 import io
 import sys
 import os
@@ -96,6 +97,26 @@ st.markdown("---")
 # ── Visualization ─────────────────────────────────────────────────────────────
 st.markdown("### Visualization")
 
+def insert_gaps(df_in, metrics):
+    """Insert NaN rows where gap between readings is more than 3x the median interval."""
+    df_s = df_in.sort_values("timestamp").copy()
+    if len(df_s) < 2:
+        return df_s
+    diffs = df_s["timestamp"].diff().dropna()
+    median_interval = diffs.median()
+    threshold = median_interval * 3
+
+    rows = []
+    for i in range(len(df_s)):
+        rows.append(df_s.iloc[i])
+        if i < len(df_s) - 1:
+            gap = df_s["timestamp"].iloc[i+1] - df_s["timestamp"].iloc[i]
+            if gap > threshold:
+                nan_row = {col: np.nan for col in df_s.columns}
+                nan_row["timestamp"] = df_s["timestamp"].iloc[i] + median_interval
+                rows.append(pd.Series(nan_row))
+    return pd.DataFrame(rows).reset_index(drop=True)
+
 numeric_cols = df.select_dtypes(include="number").columns.tolist()
 if numeric_cols and "timestamp" in df.columns:
     selected_metrics = st.multiselect(
@@ -105,20 +126,19 @@ if numeric_cols and "timestamp" in df.columns:
     )
 
     if selected_metrics:
-        df_sorted = df.sort_values("timestamp").dropna(subset=selected_metrics, how="all")
+        df_gapped = insert_gaps(df, selected_metrics)
         colors = ["#4fc3f7", "#ff7043", "#66bb6a", "#ab47bc", "#ffa726"]
 
         if len(selected_metrics) == 2:
-            # Dual Y-axis chart
             m1, m2 = selected_metrics[0], selected_metrics[1]
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=df_sorted["timestamp"], y=df_sorted[m1],
+                x=df_gapped["timestamp"], y=df_gapped[m1],
                 name=m1, line=dict(color=colors[0], width=2),
                 connectgaps=False, yaxis="y1"
             ))
             fig.add_trace(go.Scatter(
-                x=df_sorted["timestamp"], y=df_sorted[m2],
+                x=df_gapped["timestamp"], y=df_gapped[m2],
                 name=m2, line=dict(color=colors[1], width=2),
                 connectgaps=False, yaxis="y2"
             ))
@@ -135,11 +155,10 @@ if numeric_cols and "timestamp" in df.columns:
             )
             st.caption("Dual Y-axis — each metric uses its own scale on left/right")
         else:
-            # Standard overlay chart
             fig = go.Figure()
             for i, metric in enumerate(selected_metrics):
                 fig.add_trace(go.Scatter(
-                    x=df_sorted["timestamp"], y=df_sorted[metric],
+                    x=df_gapped["timestamp"], y=df_gapped[metric],
                     name=metric, line=dict(color=colors[i % len(colors)], width=2),
                     connectgaps=False
                 ))
