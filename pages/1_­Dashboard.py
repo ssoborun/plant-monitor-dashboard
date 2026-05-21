@@ -59,7 +59,6 @@ with col_time:
         ts = pd.Timestamp(latest["timestamp"])
         st.caption(f"Last reading: {ts.strftime('%Y-%m-%d %H:%M:%S')}")
 
-st.markdown("---")
 
 # ── Last Readings Table ───────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Last Sensor Readings</div>', unsafe_allow_html=True)
@@ -69,7 +68,7 @@ recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(ho
 if not recent_df.empty:
     display_recent = recent_df.copy()
     if "timestamp" in display_recent.columns:
-        display_recent["timestamp"] = display_recent["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        display_recent["timestamp"] = (display_recent["timestamp"] + SWISS_OFFSET).dt.strftime("%Y-%m-%d %H:%M:%S")
     cols_order = [c for c in ["timestamp", "temperature", "humidity", "pressure", "soil_raw", "soil_moisture"] if c in display_recent.columns]
     st.dataframe(
         display_recent[cols_order].sort_values("timestamp", ascending=False).reset_index(drop=True),
