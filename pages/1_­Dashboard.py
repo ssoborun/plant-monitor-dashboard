@@ -16,11 +16,19 @@ SWISS_OFFSET = pd.Timedelta(hours=2)
 st.markdown("""
 <style>
     div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1e3a5f, #0f2d4a);
-        border-radius: 12px;
-        padding: 16px;
-        border: 1px solid #2a5a8f;
+    background: linear-gradient(135deg, #1e3a5f, #0f2d4a);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #2a5a8f;
     }
+    div[data-testid="stMetric"] label,
+    div[data-testid="stMetric"] [data-testid="stMetricLabel"] p,
+    div[data-testid="stMetric"] [data-testid="stMetricValue"],
+    div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
+        color: #ffffff !important;
+    }
+            
+
     .weather-card {
         background: linear-gradient(135deg, #0f3460, #16213e);
         border-radius: 12px;
