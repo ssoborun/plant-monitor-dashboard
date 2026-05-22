@@ -136,17 +136,30 @@ else:
     st.markdown('<div class="alert-box alert-success">✓ All conditions are within normal thresholds</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-st.markdown('<div class="section-title">Threshold Violations</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Threshold Violations — Historical Analysis</div>', unsafe_allow_html=True)
 
-if st.button("Analyze violations"):
+# Date selection
+col1, col2 = st.columns(2)
+with col1:
+    start_date = st.date_input("From", value=pd.Timestamp.now() - pd.Timedelta(days=7))
+    start_hour = st.slider("Start hour", 0, 23, 0)
+with col2:
+    end_date = st.date_input("To", value=pd.Timestamp.now())
+    end_hour = st.slider("End hour", 0, 23, 23)
+
+SWISS_OFFSET = pd.Timedelta(hours=2)
+start_dt = (pd.Timestamp(start_date).replace(hour=start_hour) - SWISS_OFFSET).tz_localize("UTC")
+end_dt = (pd.Timestamp(end_date).replace(hour=end_hour, minute=59, second=59) - SWISS_OFFSET).tz_localize("UTC")
+
+if st.button("Analyze violations", type="primary"):
     with st.spinner("Loading data..."):
-        df = get_readings(limit=5000)
+        df = get_readings(start_date=start_dt, end_date=end_dt, limit=5000)
 
     if not df.empty:
         if "timestamp" in df.columns:
             ts_min = pd.Timestamp(df["timestamp"].min())
             ts_max = pd.Timestamp(df["timestamp"].max())
-            st.caption(f"Data from {ts_min.strftime('%Y-%m-%d %H:%M')} to {ts_max.strftime('%Y-%m-%d %H:%M')}")
+            st.caption(f"Data from {ts_min.strftime('%Y-%m-%d %H:%M')} to {ts_max.strftime('%Y-%m-%d %H:%M')} — {len(df):,} readings")
 
         violations = []
         if "Temperature" in sensors and "temperature" in df.columns and temp_min and temp_max:
@@ -197,4 +210,4 @@ if st.button("Analyze violations"):
             fig.update_layout(title="Humidity vs Thresholds", **CHART_THEME)
             st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("No data found.")
+        st.warning("No data found for the selected period.")
