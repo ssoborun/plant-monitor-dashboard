@@ -125,20 +125,23 @@ def show_detail_panel(sensor_key: str, label: str, unit: str, color: str, df_col
     if not df_24h.empty and df_col in df_24h.columns:
         df_24h["timestamp"] = df_24h["timestamp"] + SWISS_OFFSET
 
-        # Stats
-        def fmt(val): return f"{float(val):.1f}" if val is not None else "—"
-        series = df_24h[df_col].dropna()
+        # Stats — force numeric conversion
+        def fmt(val):
+            try: return f"{float(val):.1f}"
+            except: return "—"
+
+        series = pd.to_numeric(df_24h[df_col], errors="coerce").dropna()
         current_val = series.iloc[0] if not series.empty else None
 
-        s1, s2, s3, s4 = st.columns(4)
-        with s1:
-            st.markdown(f'<div class="stat-box"><div class="stat-label">Current</div><div class="stat-value" style="color:{color}">{fmt(current_val)} {unit}</div></div>', unsafe_allow_html=True)
-        with s2:
-            st.markdown(f'<div class="stat-box"><div class="stat-label">Average</div><div class="stat-value">{fmt(series.mean())} {unit}</div></div>', unsafe_allow_html=True)
-        with s3:
-            st.markdown(f'<div class="stat-box"><div class="stat-label">Min</div><div class="stat-value">{fmt(series.min())} {unit}</div></div>', unsafe_allow_html=True)
-        with s4:
-            st.markdown(f'<div class="stat-box"><div class="stat-label">Max</div><div class="stat-value">{fmt(series.max())} {unit}</div></div>', unsafe_allow_html=True)
+        s1, s2, s3, s4 = st.columns([1, 1, 1, 1])
+        for col_st, lbl, val in zip([s1, s2, s3, s4],
+                                     ["Current", "Average", "Min", "Max"],
+                                     [current_val, series.mean() if not series.empty else None,
+                                      series.min() if not series.empty else None,
+                                      series.max() if not series.empty else None]):
+            color_style = f'style="color:{color}"' if lbl == "Current" else ""
+            with col_st:
+                st.markdown(f'<div class="stat-box"><div class="stat-label">{lbl}</div><div class="stat-value" {color_style}>{fmt(val)} {unit}</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -194,7 +197,7 @@ if latest:
          "High" if pres and pres > 1013 else ("Low" if pres and pres < 1000 else "Normal")),
         ("Soil Raw", f"{soil_raw}" if soil_raw else "—",
          "Wet" if soil_raw and soil_raw < 1500 else ("Moist" if soil_raw and soil_raw < 2000 else "Dry")),
-        ("Soil Moisture", f"{soil_moist} %" if soil_moist else "—", None),
+        ("Soil Moisture", f"{soil_moist} %" if soil_moist else "—", " "),
     ]
 
     for i, (col, (title, value, delta)) in enumerate(zip(cols, labels)):
