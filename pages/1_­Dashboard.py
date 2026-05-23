@@ -124,6 +124,7 @@ def show_detail_panel(sensor_key: str, label: str, unit: str, color: str, df_col
 
     if not df_24h.empty and df_col in df_24h.columns:
         df_24h["timestamp"] = df_24h["timestamp"] + SWISS_OFFSET
+        df_24h[df_col] = pd.to_numeric(df_24h[df_col], errors="coerce")
 
         # Stats — force numeric conversion
         def fmt(val):
@@ -186,25 +187,36 @@ if latest:
     soil_raw   = latest.get("soil_raw")
     soil_moist = latest.get("soil_moisture")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    cols = [c1, c2, c3, c4, c5]
-    labels = [
-        ("Temperature", f"{temp:.1f} °C" if temp else "—",
-         f"{round(temp - stats_24h['avg_temp'], 1):+.1f}°C vs 24h" if stats_24h.get('avg_temp') and temp else None),
-        ("Humidity", f"{hum:.1f} %" if hum else "—",
-         "Optimal" if hum and 40 <= hum <= 60 else ("Too dry" if hum and hum < 40 else "Too humid")),
-        ("Pressure", f"{pres:.1f} hPa" if pres else "—",
-         "High" if pres and pres > 1013 else ("Low" if pres and pres < 1000 else "Normal")),
-        ("Soil Raw", f"{soil_raw}" if soil_raw else "—",
-         "Wet" if soil_raw and soil_raw < 1500 else ("Moist" if soil_raw and soil_raw < 2000 else "Dry")),
-        ("Soil Moisture", f"{soil_moist} %" if soil_moist else "—", " "),
+    delta_temp = f"{round(temp - stats_24h['avg_temp'], 1):+.1f}°C vs 24h" if stats_24h.get('avg_temp') and temp else "—"
+    delta_hum  = "Optimal" if hum and 40 <= hum <= 60 else ("Too dry" if hum and hum < 40 else "Too humid")
+    delta_pres = "High" if pres and pres > 1013 else ("Low" if pres and pres < 1000 else "Normal")
+    delta_soil = "Wet" if soil_raw and soil_raw < 1500 else ("Moist" if soil_raw and soil_raw < 2000 else "Dry")
+
+    cards = [
+        ("temperature", "Temperature", f"{temp:.1f} °C" if temp else "—", delta_temp, "#f97316"),
+        ("humidity",    "Humidity",    f"{hum:.1f} %" if hum else "—",    delta_hum,  "#3b82f6"),
+        ("pressure",    "Pressure",    f"{pres:.1f} hPa" if pres else "—", delta_pres, "#a855f7"),
+        ("soil_raw",    "Soil Raw",    f"{soil_raw}" if soil_raw else "—", delta_soil, "#22c55e"),
+        ("soil_moist",  "Soil Moisture", f"{soil_moist} %" if soil_moist else "—", "Calibrated", "#06b6d4"),
     ]
 
-    for i, (col, (title, value, delta)) in enumerate(zip(cols, labels)):
-        sensor_key = SENSORS[i][0]
-        with col:
-            st.metric(title, value, delta=delta)
-            if st.button(f"Details", key=f"btn_{sensor_key}", use_container_width=True):
+    c1, c2, c3, c4, c5 = st.columns(5)
+    cols = [c1, c2, c3, c4, c5]
+
+    for i, (sensor_key, title, value, delta, color) in enumerate(cards):
+        with cols[i]:
+            st.markdown(f"""
+            <div style="border-radius:12px; padding:18px 16px; border:1px solid rgba(128,128,128,0.15);
+                        box-shadow:0 1px 8px rgba(0,0,0,0.05); min-height:110px;
+                        display:flex; flex-direction:column; justify-content:space-between;">
+                <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase;
+                            letter-spacing:0.12em; opacity:0.5; margin-bottom:6px;">{title}</div>
+                <div style="font-size:1.65rem; font-weight:600; font-family:'JetBrains Mono',monospace;
+                            letter-spacing:-0.02em; margin-bottom:6px;">{value}</div>
+                <div style="font-size:0.75rem; color:#16a34a;">↑ {delta}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Details", key=f"btn_{sensor_key}", use_container_width=True):
                 if st.session_state["selected_sensor"] == sensor_key:
                     st.session_state["selected_sensor"] = None
                 else:
