@@ -170,7 +170,7 @@ def show_detail_panel(sensor_key: str, label: str, unit: str, color: str, df_col
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Indoor Sensors ────────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">Indoor Sensor Readings</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Last 10 Sensors Readings</div>', unsafe_allow_html=True)
 
 SENSORS = [
     ("temperature", "Temperature", "°C",  "#f97316", "temperature"),
@@ -236,9 +236,7 @@ else:
 st.markdown("---")
 
 # ── Previous Readings ─────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">Previous Readings</div>', unsafe_allow_html=True)
-
-recent_df = get_readings(start_date=pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=6), limit=11)
+recent_df = get_readings(limit=11)
 if not recent_df.empty:
     disp = recent_df.copy()
     if "timestamp" in disp.columns:
