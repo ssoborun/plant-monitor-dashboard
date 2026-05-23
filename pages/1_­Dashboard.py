@@ -128,7 +128,9 @@ def show_detail_panel(sensor_key: str, label: str, unit: str, color: str, df_col
         # Stats
         s1, s2, s3, s4 = st.columns(4)
         with s1:
-            st.markdown(f'<div class="stat-box"><div class="stat-label">Current</div><div class="stat-value" style="color:{color}">{df_24h[df_col].iloc[0]:.1f} {unit}</div></div>', unsafe_allow_html=True)
+            current_val = df_24h[df_col].dropna().iloc[0] if not df_24h[df_col].dropna().empty else None
+            val_str = f"{current_val:.1f} {unit}" if current_val is not None else "—"
+            st.markdown(f'<div class="stat-box"><div class="stat-label">Current</div><div class="stat-value" style="color:{color}">{val_str}</div></div>', unsafe_allow_html=True)
         with s2:
             st.markdown(f'<div class="stat-box"><div class="stat-label">Average</div><div class="stat-value">{df_24h[df_col].mean():.1f} {unit}</div></div>', unsafe_allow_html=True)
         with s3:
@@ -144,7 +146,7 @@ def show_detail_panel(sensor_key: str, label: str, unit: str, color: str, df_col
         fig.add_trace(go.Scatter(
             x=df_sorted["timestamp"], y=df_sorted[df_col],
             mode="lines", line=dict(color=color, width=2),
-            fill="tozeroy", fillcolor=f"rgba{tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.08,)}",
+            fill="tozeroy", fillcolor="rgba(128,128,128,0.08)",
             connectgaps=False, showlegend=False
         ))
         fig.update_layout(
