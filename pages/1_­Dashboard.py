@@ -233,8 +233,6 @@ if latest:
 else:
     st.warning("No sensor data available.")
 
-st.markdown("---")
-
 # ── Previous Readings ─────────────────────────────────────────────────────────
 recent_df = get_readings(limit=11)
 if not recent_df.empty:
